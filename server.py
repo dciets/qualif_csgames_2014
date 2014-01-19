@@ -10,6 +10,15 @@ class Singleton(type):
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
+def extract_metadata(msg):
+    metadata = {}
+    content = msg
+    if msg[0] == "[" and msg.find("]") != -1:
+        content = msg[msg.find("]") + 1:].strip()
+        metadata_str = msg[1:msg.find("]")]
+        metadata = {s[0].strip()[1:]:s[1].strip() for s in [i.split("=") for i in metadata_str.split(",")]}
+
+    return (metadata, content)
 
 class ChatServer(object):
     __metaclass__ = Singleton
@@ -17,8 +26,8 @@ class ChatServer(object):
     clients = dict()
 
     def register(self, client):
-        if client.username in self.clients:
-            self.send("Username %s is already taken" % client.username, client, None, {"type": "error"})
+        if client.username in self.clients or client.username == "server":
+            self.send_error("Username %s is already taken" % client.username, client)
             return False
 
         self.clients[client.username] = client
@@ -31,15 +40,18 @@ class ChatServer(object):
 
         print "Client '%s' disconnecting (%d client registered)" % (client.username, len(self.clients))
 
-    def send_all(self, msg, src):
+    def send_all(self, msg, src, metadata={}):
         for client in self.clients.values():
             if not client is src:
                 self.send(msg, client, src)
 
-    def send_to(self, msg, dst, src):
+    def send_to(self, msg, dst, src, metadata={}):
         self.send(msg, self.clients[dst], src)
 
-    def send(self, msg, dst, src, metadata={}):
+    def send_error(self, error, dst):
+        self.send(error, dst, None, {"type": "error"})
+
+    def send(self, msg, dst, src=None, metadata={}):
         try:
             metadata["src"] = src.username if src else "server"
             metadata_stamp = "[" + ",".join(map(lambda p: "@%s=%s" % p, metadata.iteritems())) + "] "
@@ -48,9 +60,23 @@ class ChatServer(object):
             print traceback.format_exc()
             self.unregister(dst)
 
-    def handle_command(self, msg, src):
-        pass
+    def handle_msg(self, msg, src):
+        if not msg:
+            return
 
+        metadata, content = extract_metadata(msg)
+        if "dst" not in metadata:
+            self.send_all(content, src, metadata)
+        elif metadata["dst"] != "server":
+            self.send_to(content, metadata["dst"], src, metadata)
+        else:
+            self.handle_command(content, src)
+
+    def handle_command(self, cmd, src):
+        if cmd == "list":
+            self.send("\n".join(self.clients.keys()), src, metadata={"type":"user_list"})
+        else:
+            self.send_error("Unknown command: %s" % cmd, src)
 
 class ClientHandler(SocketServer.BaseRequestHandler):
     def setup(self):
@@ -63,10 +89,11 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 
         try:
             while True:
-                msg = self.request.recv(1024).strip()
+                msg = self.request.recv(1024)
                 if not msg:
                     break
-                self.server.send_all(msg, self)
+
+                self.server.handle_msg(msg.strip(), self)
         except:
             print traceback.format_exc()
 
@@ -80,5 +107,4 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 if __name__ == "__main__":
     HOST, PORT = "0.0.0.0", 31337
     server = ThreadedTCPServer((HOST, PORT), ClientHandler)
-    server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.serve_forever()
