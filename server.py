@@ -16,7 +16,7 @@ class ChatServer(object):
     clients = dict()
 
     def register(self, username, client):
-        self.clients.put(username, client)
+        self.clients[username] = client
 
     def unregister(self, username):
         del self.clients[username]
@@ -34,15 +34,15 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         self.server = ChatServer()
 
     def handle(self):
-        username = self.request.recv(1024)
-        self.server.register(username, self.request)
+        self.username = self.request.recv(1024)
+        self.server.register(self.username, self.request)
 
         try:
             while True:
                 msg = self.request.recv(1024)
                 self.server.send_all(msg)
         except:
-            self.server.unregister(username)
+            self.server.unregister(self.username)
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
