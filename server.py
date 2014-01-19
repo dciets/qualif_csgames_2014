@@ -17,9 +17,14 @@ class ChatServer(object):
     clients = dict()
 
     def register(self, client):
+        if client.username in self.clients:
+            self.send("Username %s is already taken" % client.username, client, None, {"type": "error"})
+            return False
+
         self.clients[client.username] = client
 
         print "Client '%s' connecting (%d client registered)" % (client.username, len(self.clients))
+        return True
 
     def unregister(self, client):
         del self.clients[client.username]
@@ -29,16 +34,22 @@ class ChatServer(object):
     def send_all(self, msg, src):
         for client in self.clients.values():
             if not client is src:
-                self.send(msg, client)
+                self.send(msg, client, src)
 
-    def send_to(self, msg, dst):
-        self.send(msg, self.clients[dst])
+    def send_to(self, msg, dst, src):
+        self.send(msg, self.clients[dst], src)
 
-    def send(self, msg, dst):
+    def send(self, msg, dst, src, metadata={}):
         try:
-            dst.request.sendall(msg)
+            metadata["src"] = src.username if src else "server"
+            metadata_stamp = "[" + ",".join(map(lambda p: "@%s=%s" % p, metadata.iteritems())) + "] "
+            dst.request.sendall(metadata_stamp + msg)
         except:
+            print traceback.format_exc()
             self.unregister(dst)
+
+    def handle_command(self, msg, src):
+        pass
 
 
 class ClientHandler(SocketServer.BaseRequestHandler):
@@ -46,22 +57,21 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         self.server = ChatServer()
 
     def handle(self):
-        self.username = self.request.recv(1024).strip()
-        if self.username == None:
+        self.username = self.request.recv(32).strip()
+        if not (self.username and self.server.register(self)):
             return
-
-        self.server.register(self)
 
         try:
             while True:
                 msg = self.request.recv(1024).strip()
-                if msg == None:
+                if not msg:
                     break
                 self.server.send_all(msg, self)
         except:
             print traceback.format_exc()
 
         self.server.unregister(self)
+
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
@@ -70,8 +80,5 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 if __name__ == "__main__":
     HOST, PORT = "0.0.0.0", 31337
     server = ThreadedTCPServer((HOST, PORT), ClientHandler)
+    server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.serve_forever()
-
-    server_thread = threading.Thread(target=server.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
