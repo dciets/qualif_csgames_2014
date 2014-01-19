@@ -68,7 +68,10 @@ class ChatServer(object):
         if "dst" not in metadata:
             self.send_all(content, src, metadata)
         elif metadata["dst"] != "server":
-            self.send_to(content, metadata["dst"], src, metadata)
+            if metadata["dst"] in self.clients:
+                self.send_to(content, metadata["dst"], src, metadata)
+            else:
+                self.send_error("User %s is not connected" % metadata["dst"], src)
         else:
             self.handle_command(content, src)
 
