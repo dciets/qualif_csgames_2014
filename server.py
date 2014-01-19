@@ -1,6 +1,7 @@
 import socket
 import threading
 import SocketServer
+import traceback
 
 class Singleton(type):
     _instances = {}
@@ -22,8 +23,8 @@ class ChatServer(object):
         del self.clients[username]
 
     def send_all(self, msg):
-        for client in self.client:
-            self.clients.sendall(msg)
+        for client in self.clients.values():
+            client.sendall(msg)
 
     def send_to(self, msg, dst):
         self.clients[dst].sendall(msg)
@@ -35,14 +36,21 @@ class ClientHandler(SocketServer.BaseRequestHandler):
 
     def handle(self):
         self.username = self.request.recv(1024)
+        if self.username == None:
+            return
+
         self.server.register(self.username, self.request)
 
         try:
             while True:
                 msg = self.request.recv(1024)
+                if msg == None:
+                    break
                 self.server.send_all(msg)
         except:
-            self.server.unregister(self.username)
+            print traceback.format_exc()
+
+        self.server.unregister(self.username)
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
