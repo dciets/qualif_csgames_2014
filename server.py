@@ -50,10 +50,9 @@ class ChatServer(object):
         c.execute("INSERT INTO users VALUES('%s', '%s')" % tuple(creds))
         self.db_conn.commit()
 
-        self.send("user-registered %s" + username, client)
+        self.send("user-registered '%s'" % username, client)
 
     def authenticate(self, client, creds):
-        import pdb;pdb.set_trace()
         # Validate credential
         c = self.db_conn.cursor()
         c.execute("SELECT * FROM users WHERE username='%s' AND pwd='%s'" % tuple(creds))
@@ -73,14 +72,15 @@ class ChatServer(object):
         client.is_auth = True
         client.username = username
 
-        self.send("user-auth %s" + username, client)
-        self.send_all("user-connect %s" % client.username)
+        self.send("user-auth '%s'" % username, client)
+        self.send_all("user-connect '%s'" % client.username)
 
         print "Client '%s' connecting (%d clients connected)" % (client.username, len(self.clients))
 
     def disconnect(self, client):
         if not client.was_closed and client.username in self.clients:
             del self.clients[client.username]
+            client.request.close()
             self.send_all('user-disconnect ' + client.username)
 
         print "Client '%s' disconnecting (%d clients connected)" % (client.username, len(self.clients))
@@ -99,7 +99,7 @@ class ChatServer(object):
     def send(self, msg, dst, src=None, metadata={}):
         try:
             metadata["src"] = src.username if src else "server"
-            metadata_stamp = "[" + ",".join(map(lambda p: "@%s=%s" % p, metadata.iteritems())) + "] "
+            metadata_stamp = "[" + ",".join(map(lambda p: "%s=%s" % p, metadata.iteritems())) + "] "
             dst.request.sendall(metadata_stamp + msg)
         except:
             self.disconnect(dst)
@@ -109,15 +109,14 @@ class ChatServer(object):
             return
 
         metadata, content = extract_metadata(msg)
-        import pdb;pdb.set_trace()
         if src.is_auth and "dst" not in metadata:
             self.send_all(content, src, metadata)
         elif src.is_auth and metadata["dst"] in self.clients:
             self.send_to(content, metadata["dst"], src, metadata)
-        elif metadata["dst"] == "server":
+        elif "dst" in metadata and metadata["dst"] == "server":
             self.handle_command(content, src)
         elif src.is_auth:
-            self.send_error("User %s is not connected" % metadata["dst"], src)
+            self.send_error("User '%s' is not connected" % metadata["dst"], src)
         else:
             self.send_error("You must be authenticated to send message", src)
 
@@ -136,7 +135,7 @@ class ChatServer(object):
             else:
                 self.authenticate(src, creds)
         else:
-            self.send_error("Unknown command: %s" % cmd, src)
+            self.send_error("Unknown command: '%s'" % cmd, src)
 
 class ClientHandler(SocketServer.BaseRequestHandler):
     def setup(self):
