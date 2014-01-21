@@ -36,10 +36,31 @@ class ChatServer(object):
         self.db_conn = sqlite3.connect('user.db')
 
     def register(self, client, creds):
-        pass
+        username, pwd = creds
+
+        # Check existing user
+        c = self.db_conn.cursor()
+        c.execute("SELECT * FROM users WHERE username='%s'" % username)
+        user = c.fetchone()
+        if user is not None:
+            self.send_error('User "%s" already exist' % username, client)
+            return
+
+        # Insert new user
+        c.execute("INSERT INTO users VALUES('%s', '%s')" % tuple(creds))
+        self.db_conn.commit()
+
+        self.send("user-registered %s" + username, client)
 
     def authenticate(self, client, creds):
+        import pdb;pdb.set_trace()
         # Validate credential
+        c = self.db_conn.cursor()
+        c.execute("SELECT * FROM users WHERE username='%s' AND pwd='%s'" % tuple(creds))
+        user = c.fetchone()
+        if user is None:
+            self.send_error('Invalid credential', client)
+            return
 
         username, pwd = creds
         print 'auth', username, pwd
@@ -52,12 +73,13 @@ class ChatServer(object):
         client.is_auth = True
         client.username = username
 
-        self.send_all('user-connect ' + client.username)
+        self.send("user-auth %s" + username, client)
+        self.send_all("user-connect %s" % client.username)
 
         print "Client '%s' connecting (%d clients connected)" % (client.username, len(self.clients))
 
     def disconnect(self, client):
-        if not client.was_closed:
+        if not client.was_closed and client.username in self.clients:
             del self.clients[client.username]
             self.send_all('user-disconnect ' + client.username)
 
@@ -72,7 +94,7 @@ class ChatServer(object):
         self.send(msg, self.clients[dst], src)
 
     def send_error(self, error, dst):
-        self.send(error, dst, None, {"type": "error"})
+        self.send("error %s" % error, dst, None)
 
     def send(self, msg, dst, src=None, metadata={}):
         try:
@@ -87,20 +109,23 @@ class ChatServer(object):
             return
 
         metadata, content = extract_metadata(msg)
-        if "dst" not in metadata:
+        import pdb;pdb.set_trace()
+        if src.is_auth and "dst" not in metadata:
             self.send_all(content, src, metadata)
-        elif metadata["dst"] in self.clients:
+        elif src.is_auth and metadata["dst"] in self.clients:
             self.send_to(content, metadata["dst"], src, metadata)
         elif metadata["dst"] == "server":
             self.handle_command(content, src)
-        else:
+        elif src.is_auth:
             self.send_error("User %s is not connected" % metadata["dst"], src)
+        else:
+            self.send_error("You must be authenticated to send message", src)
 
 
     def handle_command(self, cmd, src):
-        if cmd == "list":
+        if src.is_auth and cmd == "list":
             self.send("\n".join(self.clients.keys()), src, metadata={"type":"user_list"})
-        elif cmd.startswith(("register", "auth")):
+        elif cmd.startswith(("register", "auth")) and not src.is_auth:
             creds = extract_credential(cmd)
             if len(creds) != 2:
                 self.send_error("Invalid parameter count. %d given, expecting 2" % len(creds), src)
