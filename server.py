@@ -119,10 +119,11 @@ class ChatServer(object):
         metadata, content = extract_metadata(msg)
         if src.is_auth and "dst" not in metadata:
             self.send_all(content, src, metadata)
-        elif src.is_auth and metadata["dst"] in self.clients:
-            self.send_to(content, metadata["dst"], src, metadata)
-        elif "dst" in metadata and metadata["dst"] == "server":
-            self.handle_command(content, src)
+        elif "dst" in metadata:
+            if metadata["dst"] in self.clients:
+                self.send_to(content, metadata["dst"], src, metadata)
+            if metadata["dst"] == "server":
+                self.handle_command(content, src)
         elif src.is_auth:
             self.send_error("User '%s' is not connected" % metadata["dst"], src)
         else:
