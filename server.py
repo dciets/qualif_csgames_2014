@@ -46,6 +46,7 @@ class ChatServer(object):
 
         if username in self.clients:
             self.clients[username].close()
+            self.send_all('user-disconnect ' + client.username)
         self.clients[username] = client
 
         client.is_auth = True
@@ -56,9 +57,7 @@ class ChatServer(object):
         print "Client '%s' connecting (%d clients connected)" % (client.username, len(self.clients))
 
     def disconnect(self, client):
-        if not client.was_closed:
-            del self.clients[client.username]
-
+        del self.clients[client.username]
         self.send_all('user-disconnect ' + client.username)
 
         print "Client '%s' disconnecting (%d clients connected)" % (client.username, len(self.clients))
@@ -132,9 +131,12 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         except:
             print traceback.format_exc()
 
-        self.server.disconnect(self)
+        if not self.was_closed:
+            self.server.disconnect(self)
 
     def close(self):
+        print "close %s connection" % self.username
+        self.request.shutdown(socket.SHUT_RDWR)
         self.request.close()
         self.was_closed = True
 
