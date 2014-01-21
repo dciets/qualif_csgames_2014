@@ -33,30 +33,39 @@ class ChatServer(object):
     clients = dict()
 
     def __init__(self):
-        self.db_conn = sqlite3.connect('user.db')
+        self.db_lock = threading.Lock()
 
     def register(self, client, creds):
         username, pwd = creds
 
-        # Check existing user
-        c = self.db_conn.cursor()
-        c.execute("SELECT * FROM users WHERE username='%s'" % username)
-        user = c.fetchone()
-        if user is not None:
-            self.send_error('User "%s" already exist' % username, client)
-            return
+        with self.db_lock:
+            db_conn = sqlite3.connect('user.db')
+            # Check existing user
+            c = db_conn.cursor()
+            c.execute("SELECT * FROM users WHERE username='%s'" % username)
+            user = c.fetchone()
+            if user is not None:
+                self.send_error('User "%s" already exist' % username, client)
+                db_conn.close()
+                return
 
-        # Insert new user
-        c.execute("INSERT INTO users VALUES('%s', '%s')" % tuple(creds))
-        self.db_conn.commit()
+            # Insert new user
+            c.execute("INSERT INTO users VALUES('%s', '%s')" % tuple(creds))
+            db_conn.commit()
+            db_conn.close()
 
         self.send("user-registered '%s'" % username, client)
 
     def authenticate(self, client, creds):
+        import pdb;pdb.set_trace()
         # Validate credential
-        c = self.db_conn.cursor()
-        c.execute("SELECT * FROM users WHERE username='%s' AND pwd='%s'" % tuple(creds))
-        user = c.fetchone()
+        with self.db_lock:
+            db_conn = sqlite3.connect('user.db')
+            c = self.db_conn.cursor()
+            c.execute("SELECT * FROM users WHERE username='%s' AND pwd='%s'" % tuple(creds))
+            user = c.fetchone()
+            db_conn.close()
+
         if user is None:
             self.send_error('Invalid credential', client)
             return
@@ -72,7 +81,7 @@ class ChatServer(object):
         client.is_auth = True
         client.username = username
 
-        self.send("user-auth '%s'" % username, client)
+        self.send("user-auth '%s'" % client.username, client)
         self.send_all("user-connect '%s'" % client.username)
 
         print "Client '%s' connecting (%d clients connected)" % (client.username, len(self.clients))
