@@ -57,7 +57,6 @@ class ChatServer(object):
         self.send("user-registered '%s'" % username, client)
 
     def authenticate(self, client, creds):
-        import pdb;pdb.set_trace()
         # Validate credential
         with self.db_lock:
             db_conn = sqlite3.connect('user.db')
