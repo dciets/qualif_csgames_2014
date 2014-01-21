@@ -61,7 +61,7 @@ class ChatServer(object):
         # Validate credential
         with self.db_lock:
             db_conn = sqlite3.connect('user.db')
-            c = self.db_conn.cursor()
+            c = db_conn.cursor()
             c.execute("SELECT * FROM users WHERE username='%s' AND pwd='%s'" % tuple(creds))
             user = c.fetchone()
             db_conn.close()
