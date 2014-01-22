@@ -9,3 +9,9 @@ Vous pouvez retrouver toute l'information sur les qualifications dans les docume
 
 Le serveur requiert Python 2.7.
 Il est possible de l'exécuter directement avec `python2 server.py` ou `./server.py`. Le serveur écoute pour les connexions sur le port 31337.
+
+## WebSocket
+
+Il est possible d'exécuter le serveur et d'accepter les connexion WebSocket à l'aide de [Websockify](https://github.com/kanaka/websockify).
+
+La plupart des distributions Linux ont un paquet `websockify` dans leur repertoire de paquet. Si vous êtes sous Windows, c'est peut-être le temps de penser à garder une machine Linux pas trop loin.
