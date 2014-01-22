@@ -223,4 +223,5 @@ if __name__ == "__main__":
         signal.signal(signal.SIGINT, signal_handler)
 
     server = ThreadedTCPServer((HOST, TCP_PORT), ClientHandler)
+    logging.info("Listening TCP on %s" % TCP_PORT)
     server.serve_forever()

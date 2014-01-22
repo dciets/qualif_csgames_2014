@@ -228,7 +228,7 @@ class WebSocketServer(object):
     def listen(self, backlog=5):
 
         self.socket.listen(backlog)
-        logging.info("Listening on %s" % self.port)
+        logging.info("Listening WebSocket on %s" % self.port)
 
         # Keep serving requests
         self.running = True
