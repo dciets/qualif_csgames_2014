@@ -12,7 +12,7 @@ Il est possible de l'exécuter directement avec `python2 server.py` ou `./server
 
 ## WebSocket
 
-Le serveur contient un petit serveur WebSocket intégré qui supporte plus ou moins le RFC pour les WebSocket. Pour le défi, il ne derait pas y avoir de problème, mais si votre navigateur web essaie de trop en demander (Fragmentation, keep-alive à partir de ping), vous risquer d'avoir des problème de communication. Dans le cas où vous éprouvez des problèmes de communication, il est possible d'utiliser un proxy WebSocket vers TCP avec Websockify. Lisez la section suivante pour plus d'information.
+Le serveur contient un petit serveur WebSocket intégré qui supporte plus ou moins le RFC pour les WebSocket. Pour le défi, il ne devrait pas y avoir de problème, mais si votre navigateur web essaie de trop en demander (Fragmentation, keep-alive à partir de ping), vous risquez d'avoir des problèmes de communication. Dans le cas où vous éprouvez des problèmes de communication, il est possible d'utiliser un proxy WebSocket vers TCP avec Websockify. Lisez la section suivante pour plus d'information.
 
 Voilà un exemple de code qui devrait fonctionner sur la plupart des navigateurs récents et qui permet de communiquer avec le serveur de chat:
 
@@ -31,13 +31,13 @@ c.onopen = function(){
 
 ## WebSockify
 
-Il est possible d'exécuter le serveur et d'accepter les connexion WebSocket à l'aide de [Websockify](https://github.com/kanaka/websockify).
+Il est possible d'exécuter le serveur et d'accepter les connexions WebSocket à l'aide de [Websockify](https://github.com/kanaka/websockify).
 
-La plupart des distributions Linux ont un paquet `websockify` dans leur repertoire de paquet. Si vous êtes sous Windows, c'est peut-être le temps de penser à garder une machine Linux pas trop loin.
+La plupart des distributions Linux ont un paquet `websockify` dans leur répertoire de paquet. Si vous êtes sous Windows, c'est peut-être le temps de penser à garder une machine Linux pas trop loin.
 
 Websockify peut être démarré avec la commande: `websockify 31338 localhost:31337`
 
-Websockify supporte seulement les communications binaires, mais il est facile de convertir un Blob en String avec Javascript:
+Websockify supporte seulement les communications binaires, mais il est facile de convertir un Blob en String avec JavaScript:
 
 ```javascript
 c = new WebSocket('ws://localhost:31338', ['binary', 'base64'])
