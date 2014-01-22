@@ -21,7 +21,7 @@ import signal
 # below for full details.
 #
 # isra017@gmail.com
-# Added a way to abstract an handler
+# Added a way to abstract an handler and fixed some issue with packet size and opcode
 
 # Constants
 MAGIC_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
