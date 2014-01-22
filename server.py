@@ -6,6 +6,15 @@ import threading
 import SocketServer
 import traceback
 import uuid
+import logging
+import signal
+import sys
+from simple_websocket_server import WebSocket, WebSocketServer
+
+SERVE_WEBSOCKET = True
+TCP_PORT = 31337
+WEBSOCKET_PORT = 31338
+HOST = '0.0.0.0'
 
 class Singleton(type):
     _instances = {}
@@ -20,6 +29,7 @@ def extract_metadata(msg):
     if msg[0] == "[" and msg.find("]") != -1:
         content = msg[msg.find("]") + 1:].strip()
         metadata_str = msg[1:msg.find("]")]
+        #dict and list comprehension are so sexy
         metadata = {s[0].strip():s[1].strip() for s in [i.split("=") for i in metadata_str.split(",")]}
 
     return (metadata, content)
@@ -70,7 +80,7 @@ class ChatServer(object):
             return
 
         username, pwd = creds
-        print 'auth', username, pwd
+        logging.debug('auth %s %s' % (username, pwd))
 
         if username in self.clients:
             self.clients[username].close()
@@ -83,7 +93,7 @@ class ChatServer(object):
         self.send("user-auth '%s'" % client.username, client)
         self.send_all("user-connect '%s'" % client.username)
 
-        print "Client '%s' connecting (%d clients connected)" % (client.username, len(self.clients))
+        logging.info("Client '%s' connecting (%d clients connected)" % (client.username, len(self.clients)))
 
     def disconnect(self, client):
         if not client.was_closed and client.username in self.clients:
@@ -91,7 +101,7 @@ class ChatServer(object):
             client.request.close()
             self.send_all('user-disconnect ' + client.username)
 
-        print "Client '%s' disconnecting (%d clients connected)" % (client.username, len(self.clients))
+        logging.info("Client '%s' disconnecting (%d clients connected)" % (client.username, len(self.clients)))
 
     def send_all(self, msg, src=None, metadata={}):
         for client in self.clients.values():
@@ -115,6 +125,8 @@ class ChatServer(object):
     def handle_msg(self, msg, src):
         if not msg:
             return
+
+        logging.debug('msg: %s', msg)
 
         metadata, content = extract_metadata(msg)
         if src.is_auth and "dst" not in metadata:
@@ -156,10 +168,10 @@ class ClientHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         try:
             while not self.was_closed:
-                msg = self.request.recv(1024)
+                msg = self.request.recv(1048576)
                 if not msg:
                     break
-                print msg
+                logging.debug("Msg received: %s" % msg)
                 self.server.handle_msg(msg.strip(), self)
         except:
             pass
@@ -167,18 +179,48 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         self.server.disconnect(self)
 
     def close(self):
-        print "close %s connection" % self.username
+        logging.info("close %s connection" % self.username)
         self.request.shutdown(socket.SHUT_RDWR)
         self.request.close()
         self.was_closed = True
 
+class WebSocketClientHandler():
+    def setup(self):
+        self.server = ChatServer()
+        self.was_closed = False
+        self.username = str(uuid.uuid4())
+        self.is_auth = False
 
+    def onmessage(self, msg):
+        self.server.handle_msg(msg.strip(), self)
+
+    def onclose(self):
+        self.server.disconnect(self)
+
+    def close(self):
+        logging.info("close %s websocket connection" % self.username)
+        self.request.client.shutdown(socket.SHUT_RDWR)
+        self.was_closed = True
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
 
 
 if __name__ == "__main__":
-    HOST, PORT = "0.0.0.0", 31337
-    server = ThreadedTCPServer((HOST, PORT), ClientHandler)
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+
+    if SERVE_WEBSOCKET:
+        server = WebSocketServer(HOST, WEBSOCKET_PORT, WebSocketClientHandler)
+        server_thread = threading.Thread(target=server.listen, args=[5])
+        server_thread.start()
+
+        # Add SIGINT handler for killing the threads
+        def signal_handler(signal, frame):
+            logging.info("Caught Ctrl+C, shutting down...")
+            server.running = False
+            sys.exit()
+
+        signal.signal(signal.SIGINT, signal_handler)
+
+    server = ThreadedTCPServer((HOST, TCP_PORT), ClientHandler)
     server.serve_forever()
