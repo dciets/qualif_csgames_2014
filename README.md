@@ -20,7 +20,7 @@ Websockify peut être démarré avec la commande: `websockify 31338 localhost:31
 
 Websockify supporte seulement les communications binaires, mais il est facile de convertir un Blob en String avec Javascript:
 
-```
+```javascript
 c = new WebSocket('ws://localhost:31338', ['binary', 'base64'])
 
 // Return an handler that convert a blob into a string and pass it to the callback
