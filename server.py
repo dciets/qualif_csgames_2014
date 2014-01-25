@@ -144,7 +144,7 @@ class ChatServer(object):
 
     def handle_command(self, cmd, src):
         if src.is_auth and cmd == "list":
-            self.send("\n".join(self.clients.keys()), src, metadata={"type":"user_list"})
+            self.send(" \n".join(self.clients.keys()), src, metadata={"type":"user_list"})
         elif cmd.startswith(("register", "auth")) and not src.is_auth:
             creds = extract_credential(cmd)
             if len(creds) != 2:
