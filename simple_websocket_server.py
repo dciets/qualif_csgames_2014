@@ -246,7 +246,10 @@ class WebSocketServer(object):
                 else:
                     logging.debug("Client ready for reading %s" % ready)
                     client = self.connections[ready].client
-                    data = client.recv(1048576)
+                    try:
+                        data = client.recv(1048576)
+                    except:
+                        data = None
                     fileno = client.fileno()
                     if data:
                         try:
