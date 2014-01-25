@@ -106,7 +106,7 @@ class ChatServer(object):
     def send_all(self, msg, src=None, metadata={}):
         for client in self.clients.values():
             if not client is src:
-                self.send(msg, client, src)
+                self.send(msg, client, src, metadata)
 
     def send_to(self, msg, dst, src=None, metadata={}):
         self.send(msg, self.clients[dst], src, metadata)
