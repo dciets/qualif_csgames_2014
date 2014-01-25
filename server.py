@@ -109,7 +109,7 @@ class ChatServer(object):
                 self.send(msg, client, src)
 
     def send_to(self, msg, dst, src=None, metadata={}):
-        self.send(msg, self.clients[dst], src)
+        self.send(msg, self.clients[dst], src, metadata)
 
     def send_error(self, error, dst):
         self.send("error %s" % error, dst, None)
