@@ -249,7 +249,10 @@ class WebSocketServer(object):
                     data = client.recv(1048576)
                     fileno = client.fileno()
                     if data:
-                        self.connections[fileno].feed(data)
+                        try:
+                            self.connections[fileno].feed(data)
+                        except:
+                            pass
                     else:
                         logging.debug("Closing client %s" % ready)
                         self.connections[fileno].handler.onclose()
