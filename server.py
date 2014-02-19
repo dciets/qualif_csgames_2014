@@ -1,5 +1,11 @@
 #!/usr/bin/env python2
 
+# This script implements the server used for CS Games 2014 DCI's Qualification.
+# See https://github.com/dciets/qualif_csgames_2014
+# 
+# Undocumented code and the 2 security holes are part of the challenge ;)
+
+
 import sqlite3
 import socket
 import threading
